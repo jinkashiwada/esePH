@@ -106,11 +106,19 @@ function clampBed(y) {
   return Math.max(H * 0.32, Math.min(H - 28, y));
 }
 
-function smoothWholeBed(iterations = 2) {
+function smoothWholeBed(iterations = 2, radius = 1) {
   for (let k = 0; k < iterations; k += 1) {
     const next = bed.slice();
-    for (let i = 1; i < bed.length - 1; i += 1) {
-      next[i] = bed[i - 1] * 0.2 + bed[i] * 0.6 + bed[i + 1] * 0.2;
+    for (let i = 0; i < bed.length; i += 1) {
+      let sum = 0;
+      let weightSum = 0;
+      for (let r = -radius; r <= radius; r += 1) {
+        const j = Math.max(0, Math.min(bed.length - 1, i + r));
+        const weight = radius + 1 - Math.abs(r);
+        sum += bed[j] * weight;
+        weightSum += weight;
+      }
+      next[i] = clampBed(sum / weightSum);
     }
     bed = next;
   }
@@ -123,32 +131,51 @@ function applyRandomTerrain() {
   const base = H * 0.86;
   const amp = H * (0.045 + Math.random() * 0.09);
   const phase = Math.random() * Math.PI * 2;
-  const patterns = ["sine1", "sine15", "sine2", "steps", "leftHigh", "middleLow", "middleHigh"];
+  const patterns = ["sine1", "sine15", "sine2", "sine3", "sine4", "sineBlend", "steps", "leftHigh", "middleLow", "middleHigh"];
   const pattern = patterns[Math.floor(Math.random() * patterns.length)];
   const stepCount = 4 + Math.floor(Math.random() * 4);
   const stepHeights = Array.from({ length: stepCount }, () => (Math.random() - 0.5) * amp * 1.9);
   const invert = Math.random() < 0.5 ? -1 : 1;
+  const leftHighUpper = 0.85 + Math.random() * 0.5;
+  const leftHighLower = 0.25 + Math.random() * 0.4;
+  const middleMain = 0.9 + Math.random() * 0.45;
+  const middleSide = 0.15 + Math.random() * 0.35;
+  const sineCycles = { sine1: 1, sine15: 1.5, sine2: 2, sine3: 3, sine4: 4 };
+  const blendComponents = Array.from({ length: 2 + Math.floor(Math.random() * 3) }, () => ({
+    cycles: [1, 1.5, 2, 3, 4, 5][Math.floor(Math.random() * 6)],
+    ampScale: 0.25 + Math.random() * 0.55,
+    phase: Math.random() * Math.PI * 2,
+    sign: Math.random() < 0.5 ? -1 : 1
+  }));
 
   for (let i = 0; i < bed.length; i += 1) {
     const x = (i / (bed.length - 1)) * W;
     const t = Math.max(0, Math.min(1, (x - left) / Math.max(1, right - left)));
+    const edgeEnvelope = Math.min(1, t / 0.08, (1 - t) / 0.08);
     let y = base;
-    if (pattern === "sine1" || pattern === "sine15" || pattern === "sine2") {
-      const cycles = pattern === "sine1" ? 1 : pattern === "sine15" ? 1.5 : 2;
-      y = base + Math.sin(t * Math.PI * 2 * cycles + phase) * amp * invert;
+    if (pattern in sineCycles) {
+      y = base + Math.sin(t * Math.PI * 2 * sineCycles[pattern] + phase) * amp * invert * edgeEnvelope;
+    } else if (pattern === "sineBlend") {
+      let wave = 0;
+      let weight = 0;
+      for (const c of blendComponents) {
+        wave += Math.sin(t * Math.PI * 2 * c.cycles + c.phase) * c.ampScale * c.sign;
+        weight += c.ampScale;
+      }
+      y = base + (wave / Math.max(0.1, weight)) * amp * 1.25 * edgeEnvelope;
     } else if (pattern === "steps") {
       const s = Math.min(stepCount - 1, Math.floor(t * stepCount));
-      y = base + stepHeights[s];
+      y = base + stepHeights[s] * edgeEnvelope;
     } else if (pattern === "leftHigh") {
-      y = t < 0.5 ? base - amp * (0.85 + Math.random() * 0.5) : base + amp * (0.25 + Math.random() * 0.4);
+      y = t < 0.5 ? base - amp * leftHighUpper * edgeEnvelope : base + amp * leftHighLower * edgeEnvelope;
     } else {
       const middle = t > 1 / 3 && t < 2 / 3;
       const sign = pattern === "middleLow" ? 1 : -1;
-      y = base + (middle ? sign * amp * (0.9 + Math.random() * 0.45) : -sign * amp * (0.15 + Math.random() * 0.35));
+      y = base + (middle ? sign * amp * middleMain : -sign * amp * middleSide) * edgeEnvelope;
     }
     bed[i] = clampBed(y);
   }
-  if (pattern !== "steps") smoothWholeBed(3);
+  smoothWholeBed(pattern === "steps" ? 5 : 4, pattern === "sineBlend" ? 2 : 1);
   rebuildWallParticles();
   reprojectParticlesAfterBedEdit();
 }
