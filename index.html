@@ -10,6 +10,20 @@
   <canvas id="sim"></canvas>
 
   <button id="panelToggle" class="icon-button panel-toggle" aria-label="設定を表示/非表示">☰</button>
+  <button id="qrButton" class="icon-button qr-toggle" aria-label="QRコードを表示">
+    <span class="qr-icon" aria-hidden="true"></span>
+  </button>
+
+  <div id="qrOverlay" class="qr-overlay hidden">
+    <div class="qr-card">
+      <img
+        id="qrImage"
+        alt="HydLab Flow Sandbox QRコード"
+        src="https://api.qrserver.com/v1/create-qr-code/?size=720x720&margin=16&data=https%3A%2F%2Fjinkashiwada.github.io%2FesePH%2F"
+      >
+      <div class="qr-url">jinkashiwada.github.io/esePH</div>
+    </div>
+  </div>
 
   <aside id="panel" class="panel">
     <div class="panel-head">
@@ -48,6 +62,22 @@
       <span>底面を編集</span>
     </label>
 
+    <div class="control-group">
+      <label for="autoDemoInterval">自動デモ</label>
+      <select id="autoDemoInterval">
+        <option value="0">オフ</option>
+        <option value="10">10秒ごと</option>
+        <option value="15">15秒ごと</option>
+        <option value="20">20秒ごと</option>
+        <option value="30">30秒ごと</option>
+      </select>
+    </div>
+
+    <label class="check-row">
+      <input id="randomTerrain" type="checkbox">
+      <span>自動デモで地形をランダム更新</span>
+    </label>
+
     <div class="slider-block">
       <label for="viscosityScale">粘性倍率 <output id="viscosityScaleLabel">1.00</output></label>
       <input id="viscosityScale" type="range" min="0.1" max="10" step="0.05" value="1">
@@ -74,6 +104,6 @@
     <span id="fps">0 fps</span>
   </div>
 
-  <script src="app.js?v=particle-count-controls-20260525e"></script>
+  <script src="app.js?v=demo-qr-automation-20260527b"></script>
 </body>
 </html>

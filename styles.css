@@ -40,6 +40,13 @@ body {
   z-index: 4;
 }
 
+.qr-toggle {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+  z-index: 4;
+}
+
 .icon-button {
   width: 40px;
   height: 40px;
@@ -48,6 +55,59 @@ body {
   background: rgba(12, 16, 20, 0.86);
   color: var(--text);
   font-size: 22px;
+}
+
+.qr-icon {
+  display: block;
+  width: 22px;
+  height: 22px;
+  margin: 0 auto;
+  background:
+    linear-gradient(#f3f7fb 0 0) 0 0 / 7px 7px,
+    linear-gradient(#f3f7fb 0 0) 15px 0 / 7px 7px,
+    linear-gradient(#f3f7fb 0 0) 0 15px / 7px 7px,
+    linear-gradient(#f3f7fb 0 0) 11px 11px / 4px 4px,
+    linear-gradient(#f3f7fb 0 0) 18px 13px / 4px 4px,
+    linear-gradient(#f3f7fb 0 0) 13px 18px / 4px 4px;
+  background-repeat: no-repeat;
+}
+
+.qr-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(5, 7, 10, 0.78);
+  backdrop-filter: blur(4px);
+}
+
+.qr-overlay.hidden {
+  display: none;
+}
+
+.qr-card {
+  width: min(72vmin, 620px);
+  padding: min(4vmin, 28px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(246, 250, 255, 0.96);
+  color: #05070a;
+  text-align: center;
+}
+
+.qr-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.qr-url {
+  margin-top: 12px;
+  font-size: clamp(13px, 2.2vmin, 18px);
+  font-weight: 650;
+  letter-spacing: 0;
 }
 
 .panel {

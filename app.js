@@ -5,6 +5,8 @@ const ui = {
   panel: document.getElementById("panel"),
   panelToggle: document.getElementById("panelToggle"),
   closePanel: document.getElementById("closePanel"),
+  qrButton: document.getElementById("qrButton"),
+  qrOverlay: document.getElementById("qrOverlay"),
   damBreak: document.getElementById("damBreak"),
   clearWater: document.getElementById("clearWater"),
   addParticles: document.getElementById("addParticles"),
@@ -12,6 +14,8 @@ const ui = {
   colorMode: document.getElementById("colorMode"),
   showVectors: document.getElementById("showVectors"),
   editWalls: document.getElementById("editWalls"),
+  autoDemoInterval: document.getElementById("autoDemoInterval"),
+  randomTerrain: document.getElementById("randomTerrain"),
   viscosityScale: document.getElementById("viscosityScale"),
   viscosityScaleLabel: document.getElementById("viscosityScaleLabel"),
   waveAmplitude: document.getElementById("waveAmplitude"),
@@ -45,6 +49,7 @@ let addParticlesHeld = false;
 let removeParticlesHeld = false;
 let addParticleCarry = 0;
 let removeParticleCarry = 0;
+let autoDemoNextAt = 0;
 
 const particles = [];
 const wallParticles = [];
@@ -95,6 +100,57 @@ function resetBed(forceDefault = false) {
     bed[i] = !forceDefault && old[i] ? Math.max(H * 0.35, Math.min(H - 28, old[i])) : base;
   }
   rebuildWallParticles();
+}
+
+function clampBed(y) {
+  return Math.max(H * 0.32, Math.min(H - 28, y));
+}
+
+function smoothWholeBed(iterations = 2) {
+  for (let k = 0; k < iterations; k += 1) {
+    const next = bed.slice();
+    for (let i = 1; i < bed.length - 1; i += 1) {
+      next[i] = bed[i - 1] * 0.2 + bed[i] * 0.6 + bed[i + 1] * 0.2;
+    }
+    bed = next;
+  }
+}
+
+function applyRandomTerrain() {
+  if (bed.length < 3) resetBed(true);
+  const left = staticWallLeft();
+  const right = wallRight();
+  const base = H * 0.86;
+  const amp = H * (0.045 + Math.random() * 0.09);
+  const phase = Math.random() * Math.PI * 2;
+  const patterns = ["sine1", "sine15", "sine2", "steps", "leftHigh", "middleLow", "middleHigh"];
+  const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+  const stepCount = 4 + Math.floor(Math.random() * 4);
+  const stepHeights = Array.from({ length: stepCount }, () => (Math.random() - 0.5) * amp * 1.9);
+  const invert = Math.random() < 0.5 ? -1 : 1;
+
+  for (let i = 0; i < bed.length; i += 1) {
+    const x = (i / (bed.length - 1)) * W;
+    const t = Math.max(0, Math.min(1, (x - left) / Math.max(1, right - left)));
+    let y = base;
+    if (pattern === "sine1" || pattern === "sine15" || pattern === "sine2") {
+      const cycles = pattern === "sine1" ? 1 : pattern === "sine15" ? 1.5 : 2;
+      y = base + Math.sin(t * Math.PI * 2 * cycles + phase) * amp * invert;
+    } else if (pattern === "steps") {
+      const s = Math.min(stepCount - 1, Math.floor(t * stepCount));
+      y = base + stepHeights[s];
+    } else if (pattern === "leftHigh") {
+      y = t < 0.5 ? base - amp * (0.85 + Math.random() * 0.5) : base + amp * (0.25 + Math.random() * 0.4);
+    } else {
+      const middle = t > 1 / 3 && t < 2 / 3;
+      const sign = pattern === "middleLow" ? 1 : -1;
+      y = base + (middle ? sign * amp * (0.9 + Math.random() * 0.45) : -sign * amp * (0.15 + Math.random() * 0.35));
+    }
+    bed[i] = clampBed(y);
+  }
+  if (pattern !== "steps") smoothWholeBed(3);
+  rebuildWallParticles();
+  reprojectParticlesAfterBedEdit();
 }
 
 function bedY(x) {
@@ -261,8 +317,12 @@ function seedDamBreak() {
 
   const left = wallLeft() + spacing * 1.1;
   damBreakGateX = wallLeft() + (wallRight() - wallLeft()) * 0.32;
-  const top = H * 0.34;
-  const bottom = H * 0.84;
+  let minBed = H;
+  for (let x = left; x < damBreakGateX - spacing * 0.8; x += spacing) {
+    minBed = Math.min(minBed, bedY(x));
+  }
+  const bottom = Math.min(H * 0.58, minBed - particleRadius * 4);
+  const top = Math.max(H * 0.14, bottom - H * 0.4);
   for (let y = top; y < bottom; y += spacing) {
     for (let x = left; x < damBreakGateX - spacing * 0.8; x += spacing) {
       if (y < bedY(x) - particleRadius - 2) addParticle(x, y, 0, 0);
@@ -430,6 +490,34 @@ function processParticleCountButtons(dt) {
     for (let i = 0; i < count; i += 1) removeRandomParticle();
   } else {
     removeParticleCarry = 0;
+  }
+}
+
+function autoDemoIntervalSec() {
+  return Number(ui.autoDemoInterval.value) || 0;
+}
+
+function scheduleNextAutoDemo(now = performance.now()) {
+  const interval = autoDemoIntervalSec();
+  autoDemoNextAt = interval > 0 ? now + interval * 1000 : 0;
+}
+
+function triggerDamBreak(randomizeTerrain = false) {
+  damBreakCountdownUntil = 0;
+  if (randomizeTerrain) applyRandomTerrain();
+  seedDamBreak();
+  scheduleNextAutoDemo(performance.now());
+}
+
+function processAutoDemo(now) {
+  const interval = autoDemoIntervalSec();
+  if (interval <= 0) {
+    autoDemoNextAt = 0;
+    return;
+  }
+  if (!autoDemoNextAt) scheduleNextAutoDemo(now);
+  if (!damBreakCountdownUntil && now >= autoDemoNextAt) {
+    triggerDamBreak(ui.randomTerrain.checked);
   }
 }
 
@@ -789,6 +877,7 @@ function frame(now) {
   updateWaveMakerState(now / 1000);
   rebuildWallParticles();
   processParticleCountButtons(Math.min(0.05, dt));
+  processAutoDemo(now);
   if (damBreakCountdownUntil && now < damBreakCountdownUntil) {
     for (const p of particles) {
       constrainPosition(p);
@@ -896,6 +985,8 @@ function collectDebugMetrics() {
     meanSpeed: round(meanMetric(particles, speed)),
     maxSpeed: round(maxMetric(particles, speed)),
     damBreakCountingDown: Boolean(damBreakCountdownUntil),
+    autoDemoInterval: autoDemoIntervalSec(),
+    autoDemoNextIn: autoDemoNextAt ? round(Math.max(0, (autoDemoNextAt - performance.now()) / 1000)) : 0,
     waveMakerX: round(waveMakerX),
     waveMakerVx: round(waveMakerVx),
     waveAmplitude: round(waveAmplitudePx()),
@@ -948,12 +1039,19 @@ canvas.addEventListener("pointercancel", () => {
 
 ui.panelToggle.addEventListener("click", () => ui.panel.classList.toggle("hidden"));
 ui.closePanel.addEventListener("click", () => ui.panel.classList.add("hidden"));
+ui.qrButton.addEventListener("click", () => {
+  ui.qrOverlay.classList.remove("hidden");
+});
+ui.qrOverlay.addEventListener("click", () => {
+  ui.qrOverlay.classList.add("hidden");
+});
 
-ui.damBreak.addEventListener("click", seedDamBreak);
+ui.damBreak.addEventListener("click", () => triggerDamBreak(false));
 ui.clearWater.addEventListener("click", () => {
   damBreakCountdownUntil = 0;
   resetBed(true);
   reprojectParticlesAfterBedEdit();
+  scheduleNextAutoDemo();
 });
 
 function bindHoldButton(button, setHeld) {
@@ -1015,6 +1113,12 @@ ui.showVectors.addEventListener("change", () => {
 });
 ui.editWalls.addEventListener("change", () => {
   editWalls = ui.editWalls.checked;
+});
+ui.autoDemoInterval.addEventListener("change", () => {
+  scheduleNextAutoDemo();
+});
+ui.randomTerrain.addEventListener("change", () => {
+  scheduleNextAutoDemo();
 });
 ui.viscosityScale.addEventListener("input", () => {
   ui.viscosityScaleLabel.textContent = Number(ui.viscosityScale.value).toFixed(2);

@@ -1,5 +1,9 @@
 # HydLab Flow Sandbox
 
+[Live demo: https://jinkashiwada.github.io/esePH/](https://jinkashiwada.github.io/esePH/)
+
+The live demo runs interactively in a browser, so visitors can try the particle flow, dam break, bed editing, and wavemaker controls directly on their own device.
+
 HydLab Flow Sandbox is a browser-based interactive flow demo for exploring water-like particle motion in a tank.
 
 This is an extremely simplified pseudo-SPH model. It uses an SPH-like particle representation with density relaxation, artificial viscosity, fixed wall particles, dam-break initialization, editable bed geometry, and a simple wavemaker.
