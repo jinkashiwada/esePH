@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>HydLab Flow Sandbox</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <canvas id="sim"></canvas>
+
+  <button id="panelToggle" class="icon-button panel-toggle" aria-label="設定を表示/非表示">☰</button>
+
+  <aside id="panel" class="panel">
+    <div class="panel-head">
+      <div>
+        <h1>HydLab Flow Sandbox</h1>
+        <div class="app-subtitle">SPH風の簡易流動モデル</div>
+      </div>
+      <button id="closePanel" class="icon-button" aria-label="設定を閉じる">×</button>
+    </div>
+
+    <div class="control-row">
+      <button id="damBreak" class="command">ダムブレイク</button>
+      <button id="clearWater" class="command">リセット</button>
+    </div>
+
+    <div class="control-row">
+      <button id="addParticles" class="command hold-command">粒子を増やす</button>
+      <button id="removeParticles" class="command hold-command">粒子を減らす</button>
+    </div>
+
+    <div class="control-group">
+      <label for="colorMode">粒子色</label>
+      <select id="colorMode">
+        <option value="white">白</option>
+        <option value="speed">流速 jet</option>
+      </select>
+    </div>
+
+    <label class="check-row">
+      <input id="showVectors" type="checkbox">
+      <span>流速ベクトル</span>
+    </label>
+
+    <label class="check-row">
+      <input id="editWalls" type="checkbox">
+      <span>底面を編集</span>
+    </label>
+
+    <div class="slider-block">
+      <label for="viscosityScale">粘性倍率 <output id="viscosityScaleLabel">1.00</output></label>
+      <input id="viscosityScale" type="range" min="0.1" max="10" step="0.05" value="1">
+    </div>
+
+    <div class="slider-block">
+      <label for="waveAmplitude">造波振幅 <output id="waveAmplitudeLabel">0</output> px</label>
+      <input id="waveAmplitude" type="range" min="0" max="100" value="0">
+    </div>
+    <div class="slider-block">
+      <label for="wavePeriod">造波周期 <output id="wavePeriodLabel">2.0</output> s</label>
+      <input id="wavePeriod" type="range" min="0.8" max="10.0" step="0.1" value="2.0">
+    </div>
+
+    <div class="legend">
+      <div class="legend-title">凡例</div>
+      <div id="legendBar" class="legend-bar"></div>
+      <div id="legendText" class="legend-text">white: water particles</div>
+    </div>
+  </aside>
+
+  <div id="hud" class="hud">
+    <span id="particleCount">0 particles</span>
+    <span id="fps">0 fps</span>
+  </div>
+
+  <script src="app.js?v=particle-count-controls-20260525e"></script>
+</body>
+</html>
