@@ -11,8 +11,8 @@ const ui = {
   clearWater: document.getElementById("clearWater"),
   addParticles: document.getElementById("addParticles"),
   removeParticles: document.getElementById("removeParticles"),
+  randomTerrainButton: document.getElementById("randomTerrainButton"),
   colorMode: document.getElementById("colorMode"),
-  showVectors: document.getElementById("showVectors"),
   editWalls: document.getElementById("editWalls"),
   autoDemoInterval: document.getElementById("autoDemoInterval"),
   randomTerrain: document.getElementById("randomTerrain"),
@@ -33,7 +33,6 @@ let H = 0;
 let dpr = 1;
 const mode = "tank";
 let colorMode = "white";
-let showVectors = false;
 let editWalls = false;
 let lastTime = performance.now();
 let fpsSmoother = 60;
@@ -148,11 +147,17 @@ function applyRandomTerrain() {
     phase: Math.random() * Math.PI * 2,
     sign: Math.random() < 0.5 ? -1 : 1
   }));
+  const trendPick = Math.random();
+  const trendKind = trendPick < 0.45 ? "none" : trendPick < 0.68 ? "downRight" : trendPick < 0.91 ? "upRight" : "longWave";
+  const trendAmp = H * (0.035 + Math.random() * 0.07);
+  const trendPhase = Math.random() * Math.PI * 2;
+  const trendCycles = 0.45 + Math.random() * 0.45;
 
   for (let i = 0; i < bed.length; i += 1) {
     const x = (i / (bed.length - 1)) * W;
     const t = Math.max(0, Math.min(1, (x - left) / Math.max(1, right - left)));
     const edgeEnvelope = Math.min(1, t / 0.08, (1 - t) / 0.08);
+    const smoothT = t * t * (3 - 2 * t);
     let y = base;
     if (pattern in sineCycles) {
       y = base + Math.sin(t * Math.PI * 2 * sineCycles[pattern] + phase) * amp * invert * edgeEnvelope;
@@ -174,9 +179,19 @@ function applyRandomTerrain() {
       const sign = pattern === "middleLow" ? 1 : -1;
       y = base + (middle ? sign * amp * middleMain : -sign * amp * middleSide) * edgeEnvelope;
     }
+    if (trendKind === "downRight") {
+      y += (smoothT - 0.5) * 2 * trendAmp;
+    } else if (trendKind === "upRight") {
+      y -= (smoothT - 0.5) * 2 * trendAmp;
+    } else if (trendKind === "longWave") {
+      y += Math.sin(smoothT * Math.PI * 2 * trendCycles + trendPhase) * trendAmp * 0.85;
+    }
     bed[i] = clampBed(y);
   }
-  smoothWholeBed(pattern === "steps" ? 5 : 4, pattern === "sineBlend" ? 2 : 1);
+  const sharpPattern = pattern === "steps" || pattern === "leftHigh" || pattern === "middleLow" || pattern === "middleHigh";
+  const smoothIterations = sharpPattern ? 9 : 4;
+  const smoothRadius = sharpPattern ? 3 : pattern === "sineBlend" || trendKind !== "none" ? 2 : 1;
+  smoothWholeBed(smoothIterations, smoothRadius);
   rebuildWallParticles();
   reprojectParticlesAfterBedEdit();
 }
@@ -867,21 +882,6 @@ function draw() {
     ctx.fill();
   }
 
-  if (showVectors) {
-    ctx.strokeStyle = "rgba(255,255,255,0.62)";
-    ctx.lineWidth = 1;
-    const step = W < 700 ? 8 : 6;
-    for (let i = 0; i < particles.length; i += step) {
-      const p = particles[i];
-      const s = Math.min(16, p.speed * 0.035);
-      if (s < 1.5) continue;
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-      ctx.lineTo(p.x + (p.vx / (p.speed || 1)) * s, p.y + (p.vy / (p.speed || 1)) * s);
-      ctx.stroke();
-    }
-  }
-
   if (editWalls) {
     ctx.fillStyle = "rgba(67,199,255,0.9)";
     ctx.font = "12px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
@@ -1143,6 +1143,12 @@ function releaseParticleHoldButtons() {
   ui.removeParticles.classList.remove("active");
 }
 
+function setEditWalls(enabled) {
+  editWalls = enabled;
+  ui.editWalls.classList.toggle("active", editWalls);
+  ui.editWalls.setAttribute("aria-pressed", editWalls ? "true" : "false");
+}
+
 window.addEventListener("pointerup", releaseParticleHoldButtons);
 window.addEventListener("pointercancel", releaseParticleHoldButtons);
 window.addEventListener("blur", releaseParticleHoldButtons);
@@ -1152,11 +1158,11 @@ ui.colorMode.addEventListener("change", () => {
   ui.legendBar.className = `legend-bar ${colorMode === "white" ? "" : colorMode}`;
   ui.legendText.textContent = colorMode === "speed" ? "blue: slow, red: fast" : "white: water particles";
 });
-ui.showVectors.addEventListener("change", () => {
-  showVectors = ui.showVectors.checked;
+ui.editWalls.addEventListener("click", () => {
+  setEditWalls(!editWalls);
 });
-ui.editWalls.addEventListener("change", () => {
-  editWalls = ui.editWalls.checked;
+ui.randomTerrainButton.addEventListener("click", () => {
+  applyRandomTerrain();
 });
 ui.autoDemoInterval.addEventListener("change", () => {
   scheduleNextAutoDemo();

@@ -192,9 +192,15 @@ select {
 
 .command:active,
 .hold-command.active,
+.toggle-command.active,
 .icon-button:active {
   border-color: rgba(67, 199, 255, 0.8);
   background: rgba(67, 199, 255, 0.18);
+}
+
+.toggle-command.active {
+  color: #dff8ff;
+  box-shadow: inset 0 0 0 1px rgba(67, 199, 255, 0.18);
 }
 
 button:disabled {

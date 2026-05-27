@@ -40,6 +40,11 @@
     </div>
 
     <div class="control-row">
+      <button id="editWalls" class="command toggle-command" aria-pressed="false">底面を編集</button>
+      <button id="randomTerrainButton" class="command">ランダム地形</button>
+    </div>
+
+    <div class="control-row">
       <button id="addParticles" class="command hold-command">粒子を増やす</button>
       <button id="removeParticles" class="command hold-command">粒子を減らす</button>
     </div>
@@ -51,16 +56,6 @@
         <option value="speed">流速 jet</option>
       </select>
     </div>
-
-    <label class="check-row">
-      <input id="showVectors" type="checkbox">
-      <span>流速ベクトル</span>
-    </label>
-
-    <label class="check-row">
-      <input id="editWalls" type="checkbox">
-      <span>底面を編集</span>
-    </label>
 
     <div class="control-group">
       <label for="autoDemoInterval">自動デモ</label>
@@ -104,6 +99,6 @@
     <span id="fps">0 fps</span>
   </div>
 
-  <script src="app.js?v=dam-break-bed-aligned-20260527a"></script>
+  <script src="app.js?v=terrain-controls-20260527b"></script>
 </body>
 </html>
