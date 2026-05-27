@@ -50,6 +50,7 @@ let removeParticlesHeld = false;
 let addParticleCarry = 0;
 let removeParticleCarry = 0;
 let autoDemoNextAt = 0;
+let lastDamBreakPlacement = null;
 
 const particles = [];
 const wallParticles = [];
@@ -344,14 +345,26 @@ function seedDamBreak() {
 
   const left = wallLeft() + spacing * 1.1;
   damBreakGateX = wallLeft() + (wallRight() - wallLeft()) * 0.32;
+  const right = damBreakGateX - spacing * 0.8;
   let minBed = H;
-  for (let x = left; x < damBreakGateX - spacing * 0.8; x += spacing) {
+  for (let x = left; x < right; x += spacing) {
     minBed = Math.min(minBed, bedY(x));
   }
-  const bottom = Math.min(H * 0.58, minBed - particleRadius * 4);
-  const top = Math.max(H * 0.14, bottom - H * 0.4);
-  for (let y = top; y < bottom; y += spacing) {
-    for (let x = left; x < damBreakGateX - spacing * 0.8; x += spacing) {
+  const bottomClearance = 6;
+  const bottomCenter = minBed - particleRadius - bottomClearance;
+  const topLimit = H * 0.14;
+  const targetTop = Math.max(topLimit, bottomCenter - H * 0.4);
+  const rows = Math.max(1, Math.floor((bottomCenter - targetTop) / spacing) + 1);
+  const top = bottomCenter - (rows - 1) * spacing;
+  lastDamBreakPlacement = {
+    minBed,
+    bottomEdge: bottomCenter + particleRadius,
+    clearance: bottomClearance,
+    rows
+  };
+  for (let row = 0; row < rows; row += 1) {
+    const y = top + row * spacing;
+    for (let x = left; x < right; x += spacing) {
       if (y < bedY(x) - particleRadius - 2) addParticle(x, y, 0, 0);
     }
   }
@@ -1014,6 +1027,10 @@ function collectDebugMetrics() {
     damBreakCountingDown: Boolean(damBreakCountdownUntil),
     autoDemoInterval: autoDemoIntervalSec(),
     autoDemoNextIn: autoDemoNextAt ? round(Math.max(0, (autoDemoNextAt - performance.now()) / 1000)) : 0,
+    damBreakBottomClearance: lastDamBreakPlacement ? round(lastDamBreakPlacement.clearance) : 0,
+    damBreakBottomEdgeY: lastDamBreakPlacement ? round(lastDamBreakPlacement.bottomEdge) : 0,
+    damBreakTerrainTopY: lastDamBreakPlacement ? round(lastDamBreakPlacement.minBed) : 0,
+    damBreakRows: lastDamBreakPlacement ? lastDamBreakPlacement.rows : 0,
     waveMakerX: round(waveMakerX),
     waveMakerVx: round(waveMakerVx),
     waveAmplitude: round(waveAmplitudePx()),
