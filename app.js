@@ -14,8 +14,8 @@ const ui = {
   randomTerrainButton: document.getElementById("randomTerrainButton"),
   colorMode: document.getElementById("colorMode"),
   editWalls: document.getElementById("editWalls"),
-  autoDemoInterval: document.getElementById("autoDemoInterval"),
-  randomTerrain: document.getElementById("randomTerrain"),
+  autoDamBreak: document.getElementById("autoDamBreak"),
+  autoRandomTerrain: document.getElementById("autoRandomTerrain"),
   viscosityScale: document.getElementById("viscosityScale"),
   viscosityScaleLabel: document.getElementById("viscosityScaleLabel"),
   waveAmplitude: document.getElementById("waveAmplitude"),
@@ -51,6 +51,8 @@ let removeParticleCarry = 0;
 let autoDemoNextAt = 0;
 let lastDamBreakPlacement = null;
 let terrainTransition = null;
+let autoDamBreakEnabled = false;
+let autoRandomTerrainEnabled = false;
 
 const particles = [];
 const wallParticles = [];
@@ -60,6 +62,7 @@ const cell = 26;
 const spacing = 11;
 const wallSpacing = 9.5;
 const h = 25;
+const autoCycleIntervalSec = 15;
 const restDensity = 3.55;
 const stiffness = 0.38;
 const nearStiffness = 0.5;
@@ -599,31 +602,40 @@ function processParticleCountButtons(dt) {
   }
 }
 
-function autoDemoIntervalSec() {
-  return Number(ui.autoDemoInterval.value) || 0;
+function autoCycleActive() {
+  return autoDamBreakEnabled || autoRandomTerrainEnabled;
 }
 
-function scheduleNextAutoDemo(now = performance.now()) {
-  const interval = autoDemoIntervalSec();
-  autoDemoNextAt = interval > 0 ? now + interval * 1000 : 0;
+function scheduleNextAutoDemo(now = performance.now(), force = false) {
+  if (!autoCycleActive()) {
+    autoDemoNextAt = 0;
+    return;
+  }
+  if (force || !autoDemoNextAt) autoDemoNextAt = now + autoCycleIntervalSec * 1000;
 }
 
 function triggerDamBreak(randomizeTerrain = false) {
   damBreakCountdownUntil = 0;
   if (randomizeTerrain) applyRandomTerrain();
   seedDamBreak();
-  scheduleNextAutoDemo(performance.now());
+  scheduleNextAutoDemo(performance.now(), true);
 }
 
 function processAutoDemo(now) {
-  const interval = autoDemoIntervalSec();
-  if (interval <= 0) {
+  if (!autoCycleActive()) {
     autoDemoNextAt = 0;
     return;
   }
   if (!autoDemoNextAt) scheduleNextAutoDemo(now);
-  if (!damBreakCountdownUntil && now >= autoDemoNextAt) {
-    triggerDamBreak(ui.randomTerrain.checked);
+  if (damBreakCountdownUntil || now < autoDemoNextAt) return;
+
+  const randomizeTerrain = autoRandomTerrainEnabled;
+  const runDamBreak = autoDamBreakEnabled;
+  if (runDamBreak) {
+    triggerDamBreak(randomizeTerrain);
+  } else if (randomizeTerrain) {
+    applyRandomTerrain({ animate: true });
+    scheduleNextAutoDemo(now, true);
   }
 }
 
@@ -1077,7 +1089,9 @@ function collectDebugMetrics() {
     meanSpeed: round(meanMetric(particles, speed)),
     maxSpeed: round(maxMetric(particles, speed)),
     damBreakCountingDown: Boolean(damBreakCountdownUntil),
-    autoDemoInterval: autoDemoIntervalSec(),
+    autoDemoInterval: autoCycleActive() ? autoCycleIntervalSec : 0,
+    autoDamBreak: autoDamBreakEnabled,
+    autoRandomTerrain: autoRandomTerrainEnabled,
     autoDemoNextIn: autoDemoNextAt ? round(Math.max(0, (autoDemoNextAt - performance.now()) / 1000)) : 0,
     damBreakBottomClearance: lastDamBreakPlacement ? round(lastDamBreakPlacement.clearance) : 0,
     damBreakBottomEdgeY: lastDamBreakPlacement ? round(lastDamBreakPlacement.bottomEdge) : 0,
@@ -1201,6 +1215,23 @@ function setEditWalls(enabled) {
   ui.editWalls.setAttribute("aria-pressed", editWalls ? "true" : "false");
 }
 
+function setAutoButton(button, enabled) {
+  button.classList.toggle("active", enabled);
+  button.setAttribute("aria-pressed", enabled ? "true" : "false");
+}
+
+function toggleAutoDamBreak() {
+  autoDamBreakEnabled = !autoDamBreakEnabled;
+  setAutoButton(ui.autoDamBreak, autoDamBreakEnabled);
+  scheduleNextAutoDemo(performance.now(), !autoDemoNextAt && autoCycleActive());
+}
+
+function toggleAutoRandomTerrain() {
+  autoRandomTerrainEnabled = !autoRandomTerrainEnabled;
+  setAutoButton(ui.autoRandomTerrain, autoRandomTerrainEnabled);
+  scheduleNextAutoDemo(performance.now(), !autoDemoNextAt && autoCycleActive());
+}
+
 window.addEventListener("pointerup", releaseParticleHoldButtons);
 window.addEventListener("pointercancel", releaseParticleHoldButtons);
 window.addEventListener("blur", releaseParticleHoldButtons);
@@ -1216,12 +1247,8 @@ ui.editWalls.addEventListener("click", () => {
 ui.randomTerrainButton.addEventListener("click", () => {
   applyRandomTerrain({ animate: true });
 });
-ui.autoDemoInterval.addEventListener("change", () => {
-  scheduleNextAutoDemo();
-});
-ui.randomTerrain.addEventListener("change", () => {
-  scheduleNextAutoDemo();
-});
+ui.autoDamBreak.addEventListener("click", toggleAutoDamBreak);
+ui.autoRandomTerrain.addEventListener("click", toggleAutoRandomTerrain);
 ui.viscosityScale.addEventListener("input", () => {
   ui.viscosityScaleLabel.textContent = Number(ui.viscosityScale.value).toFixed(2);
 });

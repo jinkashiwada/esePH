@@ -57,21 +57,10 @@
       </select>
     </div>
 
-    <div class="control-group">
-      <label for="autoDemoInterval">自動デモ</label>
-      <select id="autoDemoInterval">
-        <option value="0">オフ</option>
-        <option value="10">10秒ごと</option>
-        <option value="15">15秒ごと</option>
-        <option value="20">20秒ごと</option>
-        <option value="30">30秒ごと</option>
-      </select>
+    <div class="control-row">
+      <button id="autoDamBreak" class="command toggle-command" aria-pressed="false">Autoダムブレイク</button>
+      <button id="autoRandomTerrain" class="command toggle-command" aria-pressed="false">Autoランダム地形</button>
     </div>
-
-    <label class="check-row">
-      <input id="randomTerrain" type="checkbox">
-      <span>自動デモで地形をランダム更新</span>
-    </label>
 
     <div class="slider-block">
       <label for="viscosityScale">粘性倍率 <output id="viscosityScaleLabel">1.00</output></label>
@@ -99,6 +88,6 @@
     <span id="fps">0 fps</span>
   </div>
 
-  <script src="app.js?v=smooth-terrain-morph-20260527a"></script>
+  <script src="app.js?v=auto-buttons-15s-20260527b"></script>
 </body>
 </html>

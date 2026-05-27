@@ -175,6 +175,11 @@ label,
   gap: 8px;
 }
 
+.control-row + .control-row,
+.control-group + .control-row {
+  margin-top: 8px;
+}
+
 button,
 select,
 input {
