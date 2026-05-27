@@ -191,6 +191,7 @@ select {
 }
 
 .command:active,
+.command.active,
 .hold-command.active,
 .toggle-command.active,
 .icon-button:active {

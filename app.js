@@ -50,6 +50,7 @@ let addParticleCarry = 0;
 let removeParticleCarry = 0;
 let autoDemoNextAt = 0;
 let lastDamBreakPlacement = null;
+let terrainTransition = null;
 
 const particles = [];
 const wallParticles = [];
@@ -92,6 +93,8 @@ function resize() {
 }
 
 function resetBed(forceDefault = false) {
+  terrainTransition = null;
+  ui.randomTerrainButton.classList.remove("active");
   const n = Math.ceil(W / 12) + 1;
   const old = bed;
   bed = new Array(n);
@@ -106,25 +109,31 @@ function clampBed(y) {
   return Math.max(H * 0.32, Math.min(H - 28, y));
 }
 
-function smoothWholeBed(iterations = 2, radius = 1) {
+function smoothBedValues(values, iterations = 2, radius = 1) {
+  let smoothed = values.slice();
   for (let k = 0; k < iterations; k += 1) {
-    const next = bed.slice();
-    for (let i = 0; i < bed.length; i += 1) {
+    const next = smoothed.slice();
+    for (let i = 0; i < smoothed.length; i += 1) {
       let sum = 0;
       let weightSum = 0;
       for (let r = -radius; r <= radius; r += 1) {
-        const j = Math.max(0, Math.min(bed.length - 1, i + r));
+        const j = Math.max(0, Math.min(smoothed.length - 1, i + r));
         const weight = radius + 1 - Math.abs(r);
-        sum += bed[j] * weight;
+        sum += smoothed[j] * weight;
         weightSum += weight;
       }
       next[i] = clampBed(sum / weightSum);
     }
-    bed = next;
+    smoothed = next;
   }
+  return smoothed;
 }
 
-function applyRandomTerrain() {
+function smoothWholeBed(iterations = 2, radius = 1) {
+  bed = smoothBedValues(bed, iterations, radius);
+}
+
+function buildRandomTerrain() {
   if (bed.length < 3) resetBed(true);
   const left = staticWallLeft();
   const right = wallRight();
@@ -152,6 +161,7 @@ function applyRandomTerrain() {
   const trendAmp = H * (0.035 + Math.random() * 0.07);
   const trendPhase = Math.random() * Math.PI * 2;
   const trendCycles = 0.45 + Math.random() * 0.45;
+  let target = new Array(bed.length);
 
   for (let i = 0; i < bed.length; i += 1) {
     const x = (i / (bed.length - 1)) * W;
@@ -186,12 +196,51 @@ function applyRandomTerrain() {
     } else if (trendKind === "longWave") {
       y += Math.sin(smoothT * Math.PI * 2 * trendCycles + trendPhase) * trendAmp * 0.85;
     }
-    bed[i] = clampBed(y);
+    target[i] = clampBed(y);
   }
   const sharpPattern = pattern === "steps" || pattern === "leftHigh" || pattern === "middleLow" || pattern === "middleHigh";
   const smoothIterations = sharpPattern ? 9 : 4;
   const smoothRadius = sharpPattern ? 3 : pattern === "sineBlend" || trendKind !== "none" ? 2 : 1;
-  smoothWholeBed(smoothIterations, smoothRadius);
+  target = smoothBedValues(target, smoothIterations, smoothRadius);
+  return target;
+}
+
+function startTerrainTransition(target, duration = 1600) {
+  terrainTransition = {
+    from: bed.slice(),
+    to: target.slice(),
+    start: performance.now(),
+    duration
+  };
+  ui.randomTerrainButton.classList.add("active");
+}
+
+function updateTerrainTransition(now) {
+  if (!terrainTransition) return;
+  const t = Math.min(1, Math.max(0, (now - terrainTransition.start) / terrainTransition.duration));
+  const eased = t * t * (3 - 2 * t);
+  for (let i = 0; i < bed.length; i += 1) {
+    const from = terrainTransition.from[i] ?? bed[i];
+    const to = terrainTransition.to[i] ?? from;
+    bed[i] = clampBed(from * (1 - eased) + to * eased);
+  }
+  reprojectParticlesAfterBedEdit();
+  if (t >= 1) {
+    bed = terrainTransition.to.slice();
+    terrainTransition = null;
+    ui.randomTerrainButton.classList.remove("active");
+  }
+}
+
+function applyRandomTerrain({ animate = false } = {}) {
+  const target = buildRandomTerrain();
+  if (animate) {
+    startTerrainTransition(target);
+    return;
+  }
+  terrainTransition = null;
+  ui.randomTerrainButton.classList.remove("active");
+  bed = target;
   rebuildWallParticles();
   reprojectParticlesAfterBedEdit();
 }
@@ -220,6 +269,8 @@ function signedBedDistance(p) {
 }
 
 function setBedAt(x, y, radius = 88) {
+  terrainTransition = null;
+  ui.randomTerrainButton.classList.remove("active");
   x = Math.max(wallLeft(), Math.min(wallRight(), x));
   const targetY = Math.max(H * 0.2, Math.min(H - 30, y));
   const left = wallLeft();
@@ -915,6 +966,7 @@ function frame(now) {
   const dt = (now - lastTime) / 1000;
   lastTime = now;
   updateWaveMakerState(now / 1000);
+  updateTerrainTransition(now);
   rebuildWallParticles();
   processParticleCountButtons(Math.min(0.05, dt));
   processAutoDemo(now);
@@ -1162,7 +1214,7 @@ ui.editWalls.addEventListener("click", () => {
   setEditWalls(!editWalls);
 });
 ui.randomTerrainButton.addEventListener("click", () => {
-  applyRandomTerrain();
+  applyRandomTerrain({ animate: true });
 });
 ui.autoDemoInterval.addEventListener("change", () => {
   scheduleNextAutoDemo();
